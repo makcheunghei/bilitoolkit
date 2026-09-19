@@ -50,7 +50,7 @@ const baseConfig = (configEnv: ConfigEnv): UserConfig => {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
-      preserveSymlinks: true, // 保持 symlink，不要解析真实路径
+      preserveSymlinks: false, // pnpm 隔離式依賴需要解析 symlink 才能找到 Vue runtime 等 transitive dependency
     },
     build: {
       // 生成 Source Map => 开发环境日志打印时输出源码路径和行号

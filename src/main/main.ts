@@ -106,10 +106,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', () => {
-  process.exit(0)
-})
-
 app.on('activate', () => {
   // 在 macOS 系统内, 如果没有已开启的应用窗口
   // 点击托盘图标时通常会重新创建一个新窗口

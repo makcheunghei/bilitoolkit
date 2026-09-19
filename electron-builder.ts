@@ -4,6 +4,7 @@ import type { Configuration } from 'electron-builder'
 const winIcon = 'public/favicon.ico'
 const installerIcon = 'public/favicon.ico'
 const uninstallerIcon = 'public/favicon.ico'
+const macIcon = 'doc/logo/icon.icns'
 
 const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
@@ -16,6 +17,8 @@ export default (): Configuration => {
     productName: packageJson.productName,
     // 是否将应用程序的源代码打包成 asar 归档
     asar: true,
+    // 原生執行檔必須解包，否則 asar 內無法直接執行。
+    asarUnpack: ['node_modules/ffmpeg-static/**/*'],
     // 版权声明
     copyright: `Copyright © 2026 ${packageJson.author}`,
     // 构建的目录配置
@@ -28,6 +31,7 @@ export default (): Configuration => {
       'dist', // 主进程和渲染进程构建文件
       'dist-electron', // Electron 相关构建文件
       'package.json',
+      'LICENSE',
       'node_modules/**/*',
     ],
     // Windows 平台特定配置
@@ -48,6 +52,26 @@ export default (): Configuration => {
       artifactName: `${packageJson.productName}_${packageJson.version}.exe`, // 生成的文件名格式
       // requestedExecutionLevel: "requireAdministrator"                         // 需要管理员权限
     },
+    // macOS 平台特定配置
+    mac: {
+      icon: macIcon,
+      category: 'public.app-category.utilities',
+      target: ['dmg', 'zip'],
+      artifactName: `${packageJson.productName}_${packageJson.version}_\${arch}.\${ext}`,
+      identity: '-',
+      hardenedRuntime: false,
+      gatekeeperAssess: false,
+    },
+    // macOS DMG 配置
+    dmg: {
+      title: `${packageJson.productName} ${packageJson.version}`,
+      icon: macIcon,
+      iconSize: 96,
+      contents: [
+        { x: 130, y: 220 },
+        { x: 410, y: 220, type: 'link', path: '/Applications' },
+      ],
+    },
     // NSIS 安装程序配置
     nsis: {
       oneClick: false, // 禁用一键安装
@@ -63,20 +87,5 @@ export default (): Configuration => {
     },
     // 继承的基础配置（设为 null 禁用继承）
     //  extends: null,
-    // 需要额外打包到应用根目录的文件
-    extraFiles: [
-      {
-        from: 'LICENSE', // 许可证文件
-        to: '.', // 输出到应用根目录
-      },
-    ],
-    // 需要打包到应用资源目录的额外资源
-    extraResources: [
-      {
-        from: 'node_modules/ffmpeg-static/bin',
-        to: 'ffmpeg-static/bin',
-        filter: ['**/*'],
-      },
-    ],
   }
 }

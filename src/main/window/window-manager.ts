@@ -1,4 +1,4 @@
-import { BrowserWindow, globalShortcut, ipcMain, Menu } from 'electron'
+import { BrowserWindow, globalShortcut, ipcMain, Menu, type MenuItemConstructorOptions } from 'electron'
 import { IPC_CHANNELS } from '@/shared/types/electron-ipc.js'
 import { execBiz, formatUnitSize, isCanceledError } from '@ybgnb/utils'
 import type { PluginApiInvokeOptions } from '@/shared/types/api-invoke.js'
@@ -57,7 +57,7 @@ export class WindowManager extends BaseWindowManager {
       return await this.handlePluginApiInvoke(options, event)
     })
     // 设置菜单
-    Menu.setApplicationMenu(null)
+    this.configureApplicationMenu()
     // 应用更新检测
     appUpdateManager.init()
     // 在开发环境和生产环境均可通过快捷键打开devTools
@@ -82,6 +82,23 @@ export class WindowManager extends BaseWindowManager {
       // 生产
       mainWindow.loadFile(appPath.appURL).then(() => {})
     }
+  }
+
+  /**
+   * 配置 macOS 标准应用菜单，保留 Cmd+Q、复制、粘贴等系统快捷键。
+   */
+  private configureApplicationMenu() {
+    if (process.platform !== 'darwin') {
+      Menu.setApplicationMenu(null)
+      return
+    }
+
+    const template: MenuItemConstructorOptions[] = [
+      { role: 'appMenu' },
+      { role: 'editMenu' },
+      { role: 'windowMenu' },
+    ]
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
   }
 
   /**

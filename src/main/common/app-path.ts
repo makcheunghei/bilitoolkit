@@ -27,9 +27,13 @@ const devUrl = process.env.VITE_DEV_SERVER_URL ?? ''
  */
 const appRootPath = app.getAppPath()
 /**
- * 获取程序根目录  开发：项目路径 / 生产：安装路径
+ * 获取程序根目录  开发：项目路径 / macOS 生产：用户数据目录 / 其他生产：安装路径
  */
-const programRoot = devUrl ? appRootPath : path.dirname(app.getPath('exe'))
+const programRoot = devUrl
+  ? appRootPath
+  : process.platform === 'darwin'
+    ? app.getPath('userData')
+    : path.dirname(app.getPath('exe'))
 /**
  * 构建后的资源路径（开发环境不要使用）
  */

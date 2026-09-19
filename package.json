@@ -37,26 +37,30 @@
     "build:all": "pnpm run build:preloads && pnpm run build:task-worker && pnpm run build:recommended",
     "rebuild:native": "npx electron-rebuild -f -w better-sqlite3",
     "remark": "本地依赖库在版本未更改的情况下，代码会被vite缓存，注意！！！",
-    "dev": "rimraf node_modules/.vite && chcp 65001 && vite",
-    "dev(cache)": "chcp 65001 && vite",
-    "dev(reset all)": "rimraf node_modules/.vite && chcp 65001 && pnpm store prune && pnpm i && vite",
+    "dev": "rimraf node_modules/.vite && vite",
+    "dev(cache)": "vite",
+    "dev(reset all)": "rimraf node_modules/.vite && pnpm store prune && pnpm i && vite",
     "build(dev)": "cross-env NODE_ENV=development vite build",
     "build": "vite build",
     "app:dist(dev)": "cross-env NODE_ENV=development electron-builder",
-    "app:dist": "electron-builder"
+    "app:dist": "electron-builder",
+    "app:dist:mac": "pnpm run build:all && pnpm run rebuild:native:arm64 && pnpm run build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ electron-builder --mac dmg zip --arm64",
+    "app:dist:mac:x64": "pnpm run build:all && pnpm run rebuild:native:x64 && pnpm run build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ electron-builder --mac dmg zip --x64",
+    "rebuild:native:arm64": "npx electron-rebuild -f -w better-sqlite3 -a arm64",
+    "rebuild:native:x64": "npx electron-rebuild -f -w better-sqlite3 -a x64"
   },
   "dependencies": {
     "@npm/types": "^2.1.0",
     "@vueuse/core": "^13.9.0",
     "@vueuse/integrations": "^13.9.0",
-    "@ybgnb/bili-api": "workspace:^",
+    "@ybgnb/bili-api": "^1.0.2",
     "@ybgnb/utils": "^1.0.2",
     "@ybgnb/vite-env": "^1.0.0",
     "axios": "^1.12.1",
     "better-sqlite3": "^12.9.0",
-    "bilitoolkit-runtime": "workspace:^",
-    "bilitoolkit-types": "workspace:^",
-    "bilitoolkit-ui": "workspace:^",
+    "bilitoolkit-runtime": "^1.0.0",
+    "bilitoolkit-types": "^1.0.1",
+    "bilitoolkit-ui": "^1.0.1",
     "consola": "^3.4.2",
     "cron-parser": "^5.5.0",
     "cron-validator": "^1.4.0",
@@ -86,7 +90,9 @@
     "source-map-support": "^0.5.21",
     "tar": "^7.5.13",
     "vue": "^3.5.34",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.5.1",
+    "fs-extra": "^11.4.0",
+    "@element-plus/icons-vue": "^2.3.2"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
@@ -121,6 +127,18 @@
     "vite": "^7.3.3",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-vue-devtools": "^8.1.2",
-    "vue-tsc": "^3.0.4"
+    "vue-tsc": "^3.0.4",
+    "@types/fs-extra": "^11.0.4",
+    "@types/lodash-es": "^4.17.12"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "better-sqlite3",
+      "electron",
+      "electron-winstaller",
+      "esbuild",
+      "ffmpeg-static"
+    ]
   }
 }
