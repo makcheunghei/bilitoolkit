@@ -1,5 +1,7 @@
 # 哔哩工具姬
 
+> Fork by macOS: Apple Silicon macOS build support
+
 一款面向 B 站用户的开源工具箱，支持在线安装和卸载插件，可登录多个账号并按需选择账号执行插件。
 
 ## 技术栈
