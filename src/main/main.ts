@@ -28,8 +28,8 @@ process.on('uncaughtException', (err) => {
 })
 
 process.on('unhandledRejection', (reason) => {
+  // 插件或背景任務的 rejected promise 不應令整個應用程式退出。
   mainLogger.error('unhandledRejection:', reason)
-  app.quit()
 })
 
 // 设置全局最大监听器数

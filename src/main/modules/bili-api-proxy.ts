@@ -15,6 +15,8 @@ class BiliApiProxy {
     const logger = plugin ? getPluginLogger(plugin.id) : mainFileLogger
     const client = new BiliClient({
       ...config,
+      // 備份等分頁 API 偶爾會超過原本 5 秒；保留呼叫端覆寫能力，預設延長至 30 秒。
+      timeout: config?.timeout ?? 30_000,
       logLevel: getAppLogLevel(),
       logger: logger,
     })
