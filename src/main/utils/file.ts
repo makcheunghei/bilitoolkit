@@ -53,10 +53,15 @@ export async function showItemInFolder(fileOrDir: string): Promise<void> {
  * 解析出安全的绝对路径
  */
 export async function resolveSafeFilePath(context: ApiCallerContext, filePath: string) {
+  const rootPath = path.resolve(context.filePath)
   // 当前当前文档id关联的文件路径
-  const absolutePath = path.resolve(context.filePath, filePath)
-  // 校验安全路径，防止访问非法路径
-  if (!absolutePath.startsWith(context.filePath)) {
+  const absolutePath = path.resolve(rootPath, filePath)
+  // 校验安全路径，防止访问非法路径。
+  // 必须按目录边界判断：startsWith 会把同前缀的兄弟目录（root=/files/foo、
+  // 目标=/files/foobar/x）误判为合法，从而越权读写他人目录。
+  const relativePath = path.relative(rootPath, absolutePath)
+  const escapesRoot = relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)
+  if (escapesRoot) {
     throw new AppError(`非法路径，试图访问受限目录：[${filePath}]`)
   }
   await ensureDir(path.dirname(absolutePath))

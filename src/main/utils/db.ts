@@ -57,8 +57,11 @@ export default class DBUtils {
     }
     // 当前文档id关联的文件路径
     const filePath = path.resolve(dbPath, id.endsWith('.json') ? id : `${id}.json`)
-    // 校验安全路径，防止访问非法路径
-    if (!filePath.startsWith(dbPath)) {
+    // 校验安全路径，防止访问非法路径。
+    // 与 utils/file.ts 同口径按目录边界判断：startsWith 会放过同前缀的兄弟目录。
+    const relativePath = path.relative(dbPath, filePath)
+    const escapesRoot = relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)
+    if (escapesRoot) {
       throw new Error(`非法路径，试图访问受限目录：[${id}]`)
     }
     // 确保目录存在
