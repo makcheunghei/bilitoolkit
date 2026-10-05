@@ -26,7 +26,9 @@ export const buildAppMenus = () =>
         }
       },
       onclick: async () => {
-        await toolkitApi.window.close()
+        // 必须走核心 API 的 quitApp：直接 window.close() 在 macOS 上只关窗不退出进程，
+        // 确认框写着「确认退出吗？」却仍留在 Dock 里、后台任务继续跑。
+        await toolkitApi.core.quitApp()
       },
     },
   ] as MenuItem[]

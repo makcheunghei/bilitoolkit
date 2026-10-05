@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import { appPath } from '@/main/common/app-path.js'
 import { ApiHandleStrategy } from '@/main/types/api-dispatcher.js'
 import type { ApiCallerContext, IpcToolkitCoreApi } from '@/main/types/ipc-toolkit-api.js'
@@ -120,6 +121,16 @@ export class CoreApiHandler extends ApiHandleStrategy implements IpcToolkitCoreA
   cancelCheckUpdateApp(_context: ApiCallerContext): Promise<void> {
     appUpdateManager.showLastCheckUpToDateTip = false
     return appUpdateManager.cancelCheck()
+  }
+
+  quitApp(_context: ApiCallerContext): Promise<void> {
+    // macOS 上关闭所有窗口不会结束进程，必须显式 quit 才能真正退出
+    app.quit()
+    return Promise.resolve()
+  }
+
+  isUpdateSupported(_context: ApiCallerContext): Promise<boolean> {
+    return Promise.resolve(appUpdateManager.supported)
   }
 
   showItemInPluginFolder(_context: ApiCallerContext, pluginId: string, relativePath: string): Promise<void> {

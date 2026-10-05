@@ -145,6 +145,22 @@ export interface ToolkitCoreApi {
   cancelCheckUpdateApp(): Promise<void>
 
   /**
+   * 退出应用
+   *
+   * 与 `window.close()` 语义不同：macOS 上关闭窗口不会结束进程（Dock 图标仍在、
+   * 后台任务继续跑），「退出」菜单必须走这里才能真正退出。
+   */
+  quitApp(): Promise<void>
+
+  /**
+   * 当前平台是否支持应用内自动更新
+   *
+   * macOS 版本当前为 ad-hoc 签名（无 Developer ID 证书），Squirrel.Mac 无法通过签名校验，
+   * 自动安装必然失败，故 macOS 上返回 false，界面应隐藏更新入口。
+   */
+  isUpdateSupported(): Promise<boolean>
+
+  /**
    * 打开资源管理器并定位到文件或者文件夹（相对于插件文件夹的路径）
    */
   showItemInPluginFolder(pluginId: string, relativePath: string): Promise<void>
