@@ -1,13 +1,14 @@
 // https://www.electronjs.org/zh/docs/latest/tutorial/quick-start
 // app 控制应用程序的事件生命周期（相当于应用程序）
 // BrowserWindow 创建并控制浏览器窗口（相当于打开桌面弹框）
-import { app, BrowserWindow, ipcMain, session } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, session } from 'electron'
 import * as os from 'node:os'
 import { windowManager } from '@/main/window/window-manager.js'
 import { appPath } from '@/main/common/app-path.js'
 import { mainEnv } from '@/main/common/main-env.js'
 import { mainLogger } from '@/main/common/main-logger.js'
 import { initFFmpeg } from '@/main/modules/ffmpeg/init.js'
+import { killAllFfmpeg } from '@/main/modules/ffmpeg/merge.js'
 import '@/shared/utils/polyfills'
 import windowStateKeeper from 'electron-window-state'
 
@@ -96,7 +97,9 @@ app.whenReady().then(() => {
       })
     })
   }
-  createWindow().then()
+  createWindow().catch((e) => {
+    mainLogger.error('创建主窗口失败:', e)
+  })
 })
 
 // 除了 macOS 外，当所有窗口都被关闭的时候退出程序。 因此, 通常对应用程序和它们的菜单栏来说应该时刻保持激活状态,
@@ -106,13 +109,25 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
+// 退出前统一清理进程级资源。
+// ffmpeg 子进程与全局快捷键都不会随主进程退出自动回收：不清理会留下仍在写文件的
+// ffmpeg 进程，并在应用已退出后继续占用 CommandOrControl+Shift+i。
+app.on('will-quit', () => {
+  killAllFfmpeg()
+  globalShortcut.unregisterAll()
+})
+
 app.on('activate', () => {
-  // 在 macOS 系统内, 如果没有已开启的应用窗口
-  // 点击托盘图标时通常会重新创建一个新窗口
+  // 在 macOS 系统内，如果没有已开启的应用窗口
+  // 点击 Dock 图标时通常会重新创建一个新窗口
   const allWindows = BrowserWindow.getAllWindows()
   if (allWindows.length) {
     allWindows[0].focus()
   } else {
-    createWindow()
+    // 必须捕获异常：重建失败时若不记录，窗口既不显示也没有任何提示
+    // （表现为点 Dock 图标毫无反应，只能 Cmd+Q 后重启）
+    createWindow().catch((e) => {
+      mainLogger.error('重建主窗口失败:', e)
+    })
   }
 })
