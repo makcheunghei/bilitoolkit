@@ -281,8 +281,37 @@ export abstract class BaseWindowManager {
       },
     })
     this.appDialogWebContents = this.appDialogWebContentsView.webContents
+    await this.bindAppDialogViewToWindow(window)
+
+    const webContentsId = this.appDialogWebContents.id
+    this.webContentsToViewMap.set(webContentsId, this.appDialogWebContentsView)
+    if (appPath.devUrl) {
+      // 开发
+      await this.appDialogWebContents.loadURL(appPath.devUrl)
+    } else {
+      // 生产
+      await this.appDialogWebContents.loadFile(appPath.appURL)
+    }
+  }
+
+  /**
+   * 把对话框视图绑定到当前主窗口（尺寸跟随 + 归属映射）。
+   *
+   * macOS 上关闭主窗口后进程不退出，点 Dock 图标会重建主窗口；而 WebContentsView 由 JS 持有、
+   * 不随父窗口销毁。若不重新绑定，resize 监听会一直挂在已销毁的旧窗口上，弹窗尺寸不再跟随，
+   * 且 webContentsToWindow 仍把对话框指向旧窗口，宿主调用上下文里的 window 也就错了。
+   */
+  public async bindAppDialogViewToWindow(window: BrowserWindow) {
+    if (!this.appDialogWebContentsView || !this.appDialogWebContents) return
+    // 先摘掉可能仍挂在旧窗口上的 resize 监听
+    if (this.appDialogResizeListener) {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.removeListener('resize', this.appDialogResizeListener)
+      }
+    }
     // 更新视图边界
     const updateBounds = async () => {
+      if (window.isDestroyed()) return
       const [w, h] = window.getContentSize()
       this.appDialogWebContentsView!.setBounds({ x: 0, y: 0, width: w, height: h })
     }
@@ -295,16 +324,7 @@ export abstract class BaseWindowManager {
     window.addListener('resize', this.appDialogResizeListener)
     await this.appDialogResizeListener()
 
-    const webContentsId = this.appDialogWebContents.id
-    this.webContentsToViewMap.set(webContentsId, this.appDialogWebContentsView)
-    this.webContentsToWindow.set(webContentsId, window!)
-    if (appPath.devUrl) {
-      // 开发
-      await this.appDialogWebContents.loadURL(appPath.devUrl)
-    } else {
-      // 生产
-      await this.appDialogWebContents.loadFile(appPath.appURL)
-    }
+    this.webContentsToWindow.set(this.appDialogWebContents.id, window)
   }
 
   public viewIsShowing(view: WebContentsView) {

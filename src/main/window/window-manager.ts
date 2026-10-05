@@ -34,6 +34,10 @@ type IpcMainInvokeEvent = Electron.IpcMainInvokeEvent
 export class WindowManager extends BaseWindowManager {
   // API处理器
   readonly apiDispatcher: ToolkitApiDispatcher
+  /** 进程级全局资源是否已初始化完成 */
+  private globalInitialized = false
+  /** 全局初始化的进行中 Promise（并发重入保护） */
+  private globalInitPromise: Promise<void> | null = null
 
   constructor() {
     super()
@@ -42,6 +46,12 @@ export class WindowManager extends BaseWindowManager {
 
   /**
    * 初始化主进程相关的设置
+   *
+   * 注意：本方法在 macOS 上**会被多次调用**——关闭主窗口后进程按 darwin 分支存活，
+   * 点 Dock 图标经 `activate` 重建主窗口时会再次走到这里。因此方法体内必须区分：
+   *   - 每窗口初始化（本方法直接执行）
+   *   - 进程级全局初始化（交 ensureGlobalInitialized，只执行一次）
+   *
    * @param mainWindow 主窗口
    */
   public async initMainWindow(mainWindow: BrowserWindow) {
@@ -52,35 +62,67 @@ export class WindowManager extends BaseWindowManager {
       // 取消所有任务
       await taskRuntime.cancelAll()
     })
-    // 初始化插件API监听
-    ipcMain.handle(IPC_CHANNELS.PLUGIN_APIS, async (event: IpcMainInvokeEvent, options: PluginApiInvokeOptions) => {
-      return await this.handlePluginApiInvoke(options, event)
-    })
-    // 设置菜单
-    this.configureApplicationMenu()
-    // 应用更新检测
-    appUpdateManager.init()
-    // 在开发环境和生产环境均可通过快捷键打开devTools
-    globalShortcut.register('CommandOrControl+Shift+i', function () {
-      showDevTools()
-    })
-    // 初始化数据库
-    await initDatabase()
-    await userManager.init()
-    // 初始化对话框视图
-    await this.initAppDialogView()
-    // 初始化任务调度
-    void taskRuntime.bootstrap()
-    // 初始化下载管理
-    void downloadManager.bootstrap()
-    // 初始化文件句柄API
-    fileHandleManager.init()
+    // 进程级全局资源只初始化一次
+    await this.ensureGlobalInitialized()
+    // 主窗口重建后，把已存在的对话框视图重新绑到新窗口上（否则 resize 监听仍挂在已销毁的旧窗口）
+    await this.bindAppDialogViewToWindow(mainWindow)
+    // 每次重建主窗口都必须重新加载内容：旧窗口已销毁，不加载则新窗口永远停留在 show:false
     if (appPath.devUrl) {
       // 开发
-      mainWindow.loadURL(appPath.devUrl).then(() => {})
+      await mainWindow.loadURL(appPath.devUrl)
     } else {
       // 生产
-      mainWindow.loadFile(appPath.appURL).then(() => {})
+      await mainWindow.loadFile(appPath.appURL)
+    }
+  }
+
+  /**
+   * 进程级全局初始化，保证整个进程只执行一次。
+   *
+   * 这些资源都是进程级的：`ipcMain.handle` 重复注册会抛
+   * "Attempted to register a second handler for 'PLUGIN_APIS'"，
+   * `appUpdateManager.init()` 重复调用会叠加 autoUpdater 监听导致弹多个安装框；
+   * 一旦抛错，同一函数内后续的数据库/调度/下载初始化与窗口内容加载就全部被跳过，
+   * 新窗口既不显示也不可用（表现为点 Dock 图标毫无反应）。
+   */
+  private async ensureGlobalInitialized() {
+    if (this.globalInitialized) return
+    if (this.globalInitPromise) return await this.globalInitPromise
+
+    this.globalInitPromise = (async () => {
+      // 初始化插件API监听（先移除同名 handler，保证热重载/异常路径下的幂等）
+      ipcMain.removeHandler(IPC_CHANNELS.PLUGIN_APIS)
+      ipcMain.handle(IPC_CHANNELS.PLUGIN_APIS, async (event: IpcMainInvokeEvent, options: PluginApiInvokeOptions) => {
+        return await this.handlePluginApiInvoke(options, event)
+      })
+      // 设置菜单
+      this.configureApplicationMenu()
+      // 应用更新检测
+      appUpdateManager.init()
+      // 在开发环境和生产环境均可通过快捷键打开devTools
+      globalShortcut.register('CommandOrControl+Shift+i', function () {
+        showDevTools()
+      })
+      // 初始化数据库
+      await initDatabase()
+      await userManager.init()
+      // 初始化对话框视图
+      await this.initAppDialogView()
+      // 初始化任务调度
+      void taskRuntime.bootstrap()
+      // 初始化下载管理
+      void downloadManager.bootstrap()
+      // 初始化文件句柄API
+      fileHandleManager.init()
+      this.globalInitialized = true
+    })()
+
+    try {
+      await this.globalInitPromise
+    } catch (e) {
+      // 初始化失败则清空缓存，允许下次重建窗口时重试
+      this.globalInitPromise = null
+      throw e
     }
   }
 

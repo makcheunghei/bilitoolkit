@@ -13,6 +13,9 @@ export class FileHandleManager {
   openedFiles = new Map<FileHandleId, OpenedFile>()
 
   init() {
+    // 先移除同名 handler 保证幂等：主窗口在 macOS 上会被反复重建，
+    // 重复注册会抛 "Attempted to register a second handler for 'FILE_HANDLE'"。
+    ipcMain.removeHandler(IPC_CHANNELS.FILE_HANDLE)
     ipcMain.handle(IPC_CHANNELS.FILE_HANDLE, async (event, { operation, args }: IpcFilePayload) => {
       return execBiz(async () => {
         const context = windowManager.getApiCallerContext(event)
