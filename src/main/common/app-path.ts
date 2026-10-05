@@ -27,13 +27,20 @@ const devUrl = process.env.VITE_DEV_SERVER_URL ?? ''
  */
 const appRootPath = app.getAppPath()
 /**
- * 获取程序根目录  开发：项目路径 / macOS 生产：用户数据目录 / 其他生产：安装路径
+ * 获取程序根目录
+ *   未打包（开发服务器 / electron . 直接跑构建产物）：项目路径
+ *   macOS 打包后：用户数据目录（App 包内只读且会被 Gatekeeper 校验）
+ *   其他平台打包后：安装路径
+ *
+ * 判据必须用 app.isPackaged 而不是 devUrl：devUrl 只在 vite 开发服务器下才有值，
+ * “pnpm build && electron .” 这种未打包的生产运行拿不到 devUrl，若按 devUrl 判断会被
+ * 当成正式安装，从而与已安装的 App 共用同一个 userData 目录，污染真实数据。
  */
-const programRoot = devUrl
-  ? appRootPath
-  : process.platform === 'darwin'
+const programRoot = app.isPackaged
+  ? process.platform === 'darwin'
     ? app.getPath('userData')
     : path.dirname(app.getPath('exe'))
+  : appRootPath
 /**
  * 构建后的资源路径（开发环境不要使用）
  */
