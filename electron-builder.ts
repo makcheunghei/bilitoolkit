@@ -34,6 +34,16 @@ export default (): Configuration => {
       'LICENSE',
       'node_modules/**/*',
     ],
+    // 应用更新源。必须显式指定：不配置时 electron-builder 会回退读 package.json 的
+    // repository（= 上游 hzhilong/bilitoolkit），导致 Windows 包去"更新"成上游原版安装器。
+    // 注意 macOS 端当前为 ad-hoc 签名，feed 正确也无法自动安装（详见 update-manager.ts）。
+    publish: [
+      {
+        provider: 'github',
+        owner: 'makcheunghei',
+        repo: 'bilitoolkit',
+      },
+    ],
     // Windows 平台特定配置
     win: {
       icon: winIcon, // 应用程序图标
@@ -58,9 +68,14 @@ export default (): Configuration => {
       category: 'public.app-category.utilities',
       target: ['dmg', 'zip'],
       artifactName: `${packageJson.productName}_${packageJson.version}_\${arch}.\${ext}`,
+      // ad-hoc 签名：本机无 Developer ID 证书。后果是分发给用户的 dmg/zip 会被 Gatekeeper
+      // 判 rejected，需在 系统设置→隐私与安全性 点「仍要打开」才能启动
+      // （macOS 15+ 已移除 Control-点击绕过）。
+      // 拿到证书后：删掉 identity、改 hardenedRuntime: true，并配置 Apple 公证凭据。
       identity: '-',
       hardenedRuntime: false,
-      gatekeeperAssess: false,
+      // 注：原先这里的 `gatekeeperAssess: false` 是空操作——app-builder-lib 运行时从不
+      // 读取该选项，schema 默认值本就是 false。删掉以免给人"已关掉构建期校验"的错觉。
     },
     // macOS DMG 配置
     dmg: {

@@ -30,6 +30,18 @@ initSettingDesc(dbsDesc, toolkitApi.core.getDBsFolderSize)
 initSettingDesc(filesDesc, toolkitApi.core.getFilesFolderSize)
 const testPluginDialogVisible = ref<boolean>(false)
 
+// 更新能力由主进程判定：macOS 版本当前未签名，自动更新必然失败，需要隐藏入口。
+// 初值 null（falsy）→ 结果返回前不渲染，避免先显示再消失的闪烁。
+const updateSupported = ref<boolean | null>(null)
+toolkitApi.core
+  .isUpdateSupported()
+  .then((supported) => {
+    updateSupported.value = supported
+  })
+  .catch(() => {
+    updateSupported.value = false
+  })
+
 const handleClearIcon = async () => {
   await toolkitApi.core.clearPluginIconCache()
   clearPluginIconCache()
@@ -79,7 +91,7 @@ const handleCheckUpdate = async () => {
           <el-switch v-model="appSettings.removeFilesOnUninstall" />
         </setting-item>
       </SettingGroup>
-      <SettingGroup name="更新设置">
+      <SettingGroup v-if="updateSupported" name="更新设置">
         <SettingItem title="手动检查更新">
           <el-button type="primary" @click="handleCheckUpdate">检查更新</el-button>
         </SettingItem>
